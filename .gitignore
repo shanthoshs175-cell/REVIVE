@@ -1,0 +1,35 @@
+# Unity-generated folders (repository root only)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Ll]ogs/
+/[Oo]bj/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Generated IDE configuration and project files
+/.vs/
+/.idea/
+/*.csproj
+/*.sln
+/*.slnx
+/*.suo
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+/*.opendb
+/*.VC.db
+
+# Unity crash reports and generated diagnostics
+/sysinfo.txt
+/mono_crash.*
+
+# Operating system metadata
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
