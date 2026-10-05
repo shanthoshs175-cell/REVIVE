@@ -1,0 +1,52 @@
+.app { flex-grow: 1; background-color: #0c1b24; color: #e7eeeb; padding: 26px 34px 18px; }
+.header { flex-direction: row; align-items: center; justify-content: space-between; height: 56px; border-bottom-width: 1px; border-bottom-color: #29404b; }
+.brand { flex-direction: row; align-items: center; }
+.wordmark { font-size: 27px; -unity-font-style: bold; letter-spacing: 5px; color: #d6ece4; margin-right: 22px; }
+.micro { font-size: 10px; letter-spacing: 1.5px; color: #90aaaF; white-space: normal; }
+.header-course { font-size: 11px; letter-spacing: 2px; color: #a0bab9; }
+.controls { flex-direction: row; }
+.utility { font-size: 11px; color: #b9ceca; background-color: #18313c; border-width: 1px; border-color: #35515c; padding: 8px 10px; margin-left: 8px; border-radius: 5px; }
+.heading { flex-direction: row; justify-content: space-between; align-items: center; margin-top: 22px; margin-bottom: 20px; }
+.eyebrow { font-size: 11px; letter-spacing: 2px; color: #88c7bc; margin-bottom: 8px; }
+.title { font-size: 40px; -unity-font-style: bold; letter-spacing: -1px; }
+.score-box { align-items: flex-end; }
+.score { font-size: 26px; color: #c0e4d7; margin-top: 6px; }
+.main { flex-grow: 1; flex-direction: row; min-height: 0; }
+.left-column { width: 65%; padding-right: 25px; }
+.scene-frame { flex-grow: 1; min-height: 240px; overflow: hidden; border-width: 1px; border-color: #39545c; border-radius: 10px; }
+.environment { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.scene-top { position: absolute; left: 18px; right: 18px; top: 18px; flex-direction: row; justify-content: space-between; }
+.scene-badge { background-color: rgba(13,31,39,0.92); padding: 7px 10px; border-radius: 4px; color: #b6d9d0; font-size: 10px; letter-spacing: 1px; }
+.markers { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.hotspot { position: absolute; width: 36px; height: 36px; border-radius: 18px; border-width: 2px; border-color: #a5d7ce; background-color: #183d48; color: #f3f5e9; font-size: 13px; -unity-font-style: bold; }
+.hotspot:hover { background-color: #386e74; scale: 1.08 1.08; }
+.scene-caption { flex-direction: row; justify-content: space-between; margin-top: 12px; }
+.caption { font-size: 12px; color: #a2b9bd; white-space: normal; }
+.objective { border-left-width: 2px; border-left-color: #79b7ab; padding-left: 16px; margin-top: 23px; margin-bottom: 18px; }
+.objective-copy { white-space: normal; font-size: 17px; color: #d3e0df; }
+.progress-row { flex-direction: row; justify-content: space-between; padding-top: 12px; border-top-width: 1px; border-top-color: #29404b; }
+.rail { width: 35%; background-color: #122731; border-width: 1px; border-color: #2b444e; border-radius: 10px; padding: 23px 19px; }
+.rail-scroll { flex-grow: 1; }
+.prompt { white-space: normal; font-size: 18px; margin-bottom: 19px; color: #e4ebe5; }
+.choices { flex-shrink: 0; }
+.choice { white-space: normal; -unity-text-align: middle-left; font-size: 14px; min-height: 48px; padding: 12px 14px; margin: 0 0 9px; background-color: #1c3641; color: #dce8e3; border-width: 1px; border-color: #37535d; border-radius: 6px; transition-property: background-color; transition-duration: 0.15s; }
+.choice:hover { background-color: #305461; border-color: #89baaf; }
+Button:focus { border-color: #e8c580; border-width: 2px; }
+.primary { white-space: normal; min-height: 44px; font-size: 14px; padding: 12px; margin: 14px 0; background-color: #94cabb; color: #122c34; border-width: 1px; border-color: #b7d9c9; border-radius: 5px; -unity-font-style: bold; }
+.primary:hover { background-color: #beded1; }
+.feedback { background-color: #1c3b42; border-left-width: 3px; border-left-color: #96cbbb; padding: 16px; border-radius: 5px; }
+.feedback.unsafe { background-color: #3b3433; border-left-color: #e6ac7d; }
+.feedback-title { font-size: 19px; white-space: normal; -unity-font-style: bold; margin-bottom: 12px; }
+.feedback-copy { font-size: 16px; white-space: normal; color: #dae5dd; }
+.reasoning { margin-top: 14px; font-size: 12px; }
+.source { font-size: 10px; white-space: normal; color: #a4b8b8; margin-top: 10px; }
+.complete-copy { font-size: 14px; white-space: normal; color: #b9d1c9; margin-top: 18px; }
+.footer { flex-direction: row; justify-content: space-between; padding-top: 20px; }
+.compact.app { padding: 14px 18px; }
+.compact .header-course { display: none; }
+.compact .brand .micro { display: none; }
+.compact .title { font-size: 30px; }
+.compact .left-column { width: 55%; padding-right: 14px; }
+.compact .rail { width: 45%; padding: 14px; }
+.compact .scene-caption { flex-direction: column; }
+.compact .progress-row { flex-direction: column; }

@@ -1,0 +1,11 @@
+{
+  "name": "Revive.PlayMode.Tests",
+  "references": [
+    "Revive.Runtime",
+    "Ink",
+    "Ink-Libraries"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

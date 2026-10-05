@@ -1,0 +1,252 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e93cc54f53844c78a0f285f6f3f81ab, type: 3}
+  m_Name: Level01_SceneSafety
+  m_EditorClassIdentifier: Revive.Runtime::Revive.Scenarios.ScenarioData
+  id: level01_scene_safety
+  title: Scene safety
+  environment: Maintenance bay / public concourse
+  incident: A person loses their footing beside a maintenance bay. You arrive at
+    the entrance.
+  learningObjective: Assess the surroundings. Choose a response that protects you
+    and others.
+  difficulty: 1
+  viewpointCaption: View from the entrance · Observe without entering
+  completionSummary: The hazard is still present. Completion records your response, not a safe scene.
+  story: {fileID: 6231892579173505729, guid: ff74a164d05e4333a7a49b713a70bb5c, type: 3}
+  initialFacts:
+  - id: person_down
+    value: 1
+  - id: unusual_clue
+    value: 1
+  - id: responder_outside
+    value: 1
+  observations:
+  - id: equipment
+    title: Damaged equipment
+    description: Damaged cable beside a spill; power isolation is not established.
+    reveals:
+    - id: hazard_confirmed
+      value: 1
+    - id: hazard_controlled
+      value: 0
+    hotspot: {x: 0.74, y: 0.52}
+  - id: area
+    title: Entrance position
+    description: A standing position outside the affected bay.
+    reveals:
+    - id: safe_area_identified
+      value: 1
+    hotspot: {x: 0.24, y: 0.79}
+  - id: people
+    title: People & access
+    description: One person down, two bystanders outside, clear entrance.
+    reveals:
+    - id: people_observed
+      value: 1
+    - id: one_person_down
+      value: 1
+    - id: bystanders_present
+      value: 1
+    - id: access_clear
+      value: 1
+    hotspot: {x: 0.34, y: 0.4}
+  availableActions:
+  - id: observe_equipment
+    kind: 0
+    observationId: equipment
+    requirements: []
+    intent: []
+    outcomes:
+    - equipment_noted
+  - id: observe_area
+    kind: 0
+    observationId: area
+    requirements: []
+    intent: []
+    outcomes:
+    - area_noted
+  - id: observe_people
+    kind: 0
+    observationId: people
+    requirements: []
+    intent: []
+    outcomes:
+    - people_noted
+  - id: approach
+    kind: 1
+    observationId: 
+    requirements: []
+    intent:
+    - id: approach_requested
+      value: 1
+    outcomes:
+    - unsafe_entry
+    - unassessed_entry
+  - id: request_help
+    kind: 1
+    observationId: 
+    requirements: []
+    intent:
+    - id: help_requested
+      value: 1
+    outcomes:
+    - safe_response
+  - id: wait
+    kind: 1
+    observationId: 
+    requirements: []
+    intent: []
+    outcomes:
+    - waited
+  rules:
+  - id: R01_uncontrolled_hazard
+    conditions:
+    - id: hazard_confirmed
+      value: 1
+    - id: hazard_controlled
+      value: 0
+    conclusions:
+    - id: scene_unsafe
+      value: 1
+    sourceId: ifrc2025
+    rationale: An uncontrolled danger prevents direct approach.
+  - id: R02_distant_support
+    conditions:
+    - id: scene_unsafe
+      value: 1
+    - id: safe_area_identified
+      value: 1
+    conclusions:
+    - id: distant_support_possible
+      value: 1
+    sourceId: ifrc2025
+    rationale: Support can be requested from outside the hazard.
+  - id: R03_unsafe_entry
+    conditions:
+    - id: scene_unsafe
+      value: 1
+    - id: approach_requested
+      value: 1
+    conclusions:
+    - id: unsafe_entry
+      value: 1
+    sourceId: ifrc2025
+    rationale: Entering an unsafe area exposes the responder.
+  - id: R04_safe_response
+    conditions:
+    - id: responder_outside
+      value: 1
+    - id: help_requested
+      value: 1
+    conclusions:
+    - id: safe_response_selected
+      value: 1
+    sourceId: ifrc2025
+    rationale: Staying away and seeking help is a safe response.
+  - id: R05_assessment_recorded
+    conditions:
+    - id: hazard_confirmed
+      value: 1
+    - id: safe_area_identified
+      value: 1
+    - id: people_observed
+      value: 1
+    conclusions:
+    - id: assessment_complete
+      value: 1
+    sourceId: ifrc2025
+    rationale: Assessment considers danger, safer areas and people.
+  correctActions:
+  - observe_equipment
+  - observe_area
+  - observe_people
+  - request_help
+  consequences:
+  - id: equipment_noted
+    conditions: []
+    effects: []
+    kind: 0
+    title: Damaged equipment recorded
+    explanationKnot: equipment_feedback
+    sourceId: ifrc2025
+    scoreDelta: 10
+    completesScenario: 0
+  - id: area_noted
+    conditions: []
+    effects: []
+    kind: 0
+    title: Entrance position recorded
+    explanationKnot: area_feedback
+    sourceId: ifrc2025
+    scoreDelta: 10
+    completesScenario: 0
+  - id: people_noted
+    conditions: []
+    effects: []
+    kind: 0
+    title: People & access recorded
+    explanationKnot: people_feedback
+    sourceId: ifrc2025
+    scoreDelta: 10
+    completesScenario: 0
+  - id: unsafe_entry
+    conditions:
+    - id: unsafe_entry
+      value: 1
+    effects: []
+    kind: 2
+    title: Pause. The approach is unsafe.
+    explanationKnot: unsafe_feedback
+    sourceId: ifrc2025
+    scoreDelta: -20
+    completesScenario: 0
+  - id: unassessed_entry
+    conditions: []
+    effects: []
+    kind: 2
+    title: Pause. Assess before approaching.
+    explanationKnot: unassessed_feedback
+    sourceId: ifrc2025
+    scoreDelta: -15
+    completesScenario: 0
+  - id: safe_response
+    conditions:
+    - id: safe_response_selected
+      value: 1
+    effects:
+    - id: help_requested
+      value: 1
+    kind: 1
+    title: A safer response.
+    explanationKnot: help_feedback
+    sourceId: ifrc2025
+    scoreDelta: 50
+    completesScenario: 1
+  - id: waited
+    conditions: []
+    effects: []
+    kind: 3
+    title: You can still take action.
+    explanationKnot: wait_feedback
+    sourceId: ifrc2025
+    scoreDelta: -5
+    completesScenario: 0
+  sources:
+  - id: ifrc2025
+    shortTitle: IFRC 2025 / SCENE ASSESSMENT
+    title: IFRC International First Aid, Resuscitation and Education Guidelines 2025
+    url: https://www.ifrc.org/sites/default/files/2026-03/IFRC%20International%20First%20Aid%2C%20Resuscitation%20and%20Education%20Guidelines%202025.pdf
+    pages: "Printed pp. 115\u2013117, General approach / Assess the scene (PDF indices
+      114\u2013116)."
+  completionBonus: 20
+  maximumScore: 100

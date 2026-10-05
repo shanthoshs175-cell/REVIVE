@@ -1,0 +1,8 @@
+{
+  "name": "Revive.Runtime",
+  "rootNamespace": "Revive",
+  "references": [
+    "Ink",
+    "Ink-Libraries"
+  ]
+}

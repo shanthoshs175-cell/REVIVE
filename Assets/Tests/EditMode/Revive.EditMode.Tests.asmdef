@@ -1,0 +1,14 @@
+{
+  "name": "Revive.EditMode.Tests",
+  "references": [
+    "Revive.Runtime",
+    "Ink",
+    "Ink-Libraries"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

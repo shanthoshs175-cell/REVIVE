@@ -1,0 +1,11 @@
+{
+  "name": "Revive.Editor",
+  "references": [
+    "Revive.Runtime",
+    "Ink",
+    "Ink-Libraries"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}
