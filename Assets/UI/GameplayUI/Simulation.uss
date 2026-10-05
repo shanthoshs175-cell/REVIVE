@@ -8,11 +8,11 @@
 .utility { font-size: 11px; color: #b9ceca; background-color: #18313c; border-width: 1px; border-color: #35515c; padding: 8px 10px; margin-left: 8px; border-radius: 5px; }
 .heading { flex-direction: row; justify-content: space-between; align-items: center; margin-top: 22px; margin-bottom: 20px; }
 .eyebrow { font-size: 11px; letter-spacing: 2px; color: #88c7bc; margin-bottom: 8px; }
-.title { font-size: 40px; -unity-font-style: bold; letter-spacing: -1px; }
+.title { font-size: 36px; -unity-font-style: bold; letter-spacing: -1px; }
 .score-box { align-items: flex-end; }
-.score { font-size: 26px; color: #c0e4d7; margin-top: 6px; }
+.score { font-size: 22px; color: #c0e4d7; margin-top: 6px; }
 .main { flex-grow: 1; flex-direction: row; min-height: 0; }
-.left-column { width: 65%; padding-right: 25px; }
+.left-column { width: 64%; padding-right: 25px; }
 .scene-frame { flex-grow: 1; min-height: 240px; overflow: hidden; border-width: 1px; border-color: #39545c; border-radius: 10px; }
 .environment { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .scene-top { position: absolute; left: 18px; right: 18px; top: 18px; flex-direction: row; justify-content: space-between; }
@@ -22,14 +22,14 @@
 .hotspot:hover { background-color: #386e74; scale: 1.08 1.08; }
 .scene-caption { flex-direction: row; justify-content: space-between; margin-top: 12px; }
 .caption { font-size: 12px; color: #a2b9bd; white-space: normal; }
-.objective { border-left-width: 2px; border-left-color: #79b7ab; padding-left: 16px; margin-top: 23px; margin-bottom: 18px; }
+.objective { border-left-width: 2px; border-left-color: #79b7ab; padding-left: 16px; margin-top: 16px; margin-bottom: 14px; }
 .objective-copy { white-space: normal; font-size: 17px; color: #d3e0df; }
 .progress-row { flex-direction: row; justify-content: space-between; padding-top: 12px; border-top-width: 1px; border-top-color: #29404b; }
-.rail { width: 35%; background-color: #122731; border-width: 1px; border-color: #2b444e; border-radius: 10px; padding: 23px 19px; }
+.rail { width: 36%; background-color: #122731; border-width: 1px; border-color: #2b444e; border-radius: 10px; padding: 23px 19px; }
 .rail-scroll { flex-grow: 1; }
 .prompt { white-space: normal; font-size: 18px; margin-bottom: 19px; color: #e4ebe5; }
 .choices { flex-shrink: 0; }
-.choice { white-space: normal; -unity-text-align: middle-left; font-size: 14px; min-height: 48px; padding: 12px 14px; margin: 0 0 9px; background-color: #1c3641; color: #dce8e3; border-width: 1px; border-color: #37535d; border-radius: 6px; transition-property: background-color; transition-duration: 0.15s; }
+.choice { white-space: normal; -unity-text-align: middle-left; font-size: 16px; min-height: 64px; padding: 12px 14px; margin: 0 0 9px; background-color: #1c3641; color: #dce8e3; border-width: 1px; border-color: #37535d; border-radius: 6px; transition-property: background-color; transition-duration: 0.15s; }
 .choice:hover { background-color: #305461; border-color: #89baaf; }
 Button:focus { border-color: #e8c580; border-width: 2px; }
 .primary { white-space: normal; min-height: 44px; font-size: 14px; padding: 12px; margin: 14px 0; background-color: #94cabb; color: #122c34; border-width: 1px; border-color: #b7d9c9; border-radius: 5px; -unity-font-style: bold; }
@@ -50,3 +50,12 @@ Button:focus { border-color: #e8c580; border-width: 2px; }
 .compact .rail { width: 45%; padding: 14px; }
 .compact .scene-caption { flex-direction: column; }
 .compact .progress-row { flex-direction: column; }
+
+/* Interaction states remain visible without depending on color alone. */
+.choice:active { background-color: #437065; border-color: #d9e9db; translate: 0 1px; }
+.primary:active { background-color: #75af9f; }
+.primary.retry { background-color: #e6ba85; border-color: #f1cea1; color: #322b24; }
+.primary.retry:hover { background-color: #f1cea1; }
+.reasoning .unity-toggle__text { color: #c4d9d4; }
+.reasoning .unity-toggle:focus { border-color: #e8c580; border-width: 1px; }
+.header, .heading, .footer { flex-shrink: 0; }

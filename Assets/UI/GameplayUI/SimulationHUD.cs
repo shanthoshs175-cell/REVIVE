@@ -14,7 +14,7 @@ namespace Revive.UI
         [SerializeField] private ScenarioPresentation presentation;
         [SerializeField] private ScenarioAudio audioFeedback;
         [SerializeField] private StyleSheet stylesheet;
-        private VisualElement root, choices, markers, feedback, rail, sceneFrame;
+        private VisualElement root, choices, feedback, rail, sceneFrame;
         private Label score, prompt, feedbackTitle, feedbackText, phase, observationCount, completeText;
         private Button continueButton, motionButton, soundButton;
         private EnvironmentCanvas canvas;
@@ -43,7 +43,7 @@ namespace Revive.UI
             var left=Box(main,"left-column");sceneFrame=Box(left,"scene-frame");
             canvas=new EnvironmentCanvas();canvas.AddToClassList("environment");sceneFrame.Add(canvas);
             var sceneTop=Box(sceneFrame,"scene-top");sceneTop.Add(Text("SIMULATION / LIVE", "scene-badge"));phase=Text("INCIDENT", "scene-badge");sceneTop.Add(phase);
-            markers=Box(sceneFrame,"markers");markers.pickingMode=PickingMode.Ignore;
+
             var caption=Box(left,"scene-caption");caption.Add(Text(session.Scenario.Environment.ToUpperInvariant(),"micro"));caption.Add(Text(session.Scenario.ViewpointCaption, "caption"));
             var objective=Box(left,"objective");objective.Add(Text("YOUR OBJECTIVE", "eyebrow"));objective.Add(Text(session.Scenario.LearningObjective,"objective-copy"));
             var progress=Box(left,"progress-row");observationCount=Text("0 / 3 observations", "caption");progress.Add(observationCount);progress.Add(Text("OBSERVE  →  DECIDE  →  REFLECT", "micro"));
@@ -60,7 +60,10 @@ namespace Revive.UI
         {
             if(canvas==null)return;
             canvas.Incident=presentation.IncidentProgress;canvas.Reaction=presentation.ReactionStrength;canvas.ReducedMotion=presentation.ReducedMotion;
-            canvas.Warning=session.LastDecision?.Consequence.kind==ConsequenceKind.Unsafe;canvas.MarkDirtyRepaint();
+            canvas.Warning=session.LastDecision?.Consequence.kind==ConsequenceKind.Unsafe;
+            canvas.Response=presentation.Response;canvas.ResponseProgress=presentation.ResponseProgress;
+            canvas.AssessmentVisible=presentation.AssessmentVisible;canvas.CommunicationVisible=presentation.CommunicationVisible;
+            canvas.MarkDirtyRepaint();
             if(readyLast!=presentation.Ready){readyLast=presentation.Ready;Refresh();}
         }
         public void Refresh()
@@ -68,44 +71,45 @@ namespace Revive.UI
             if(root==null || session.Manager==null)return;
             var state=session.Manager.State;
             score.text=$"{state.Score:000} / {session.Scenario.MaximumScore}";
-            observationCount.text=$"{state.Observed.Count} / {session.Scenario.Observations.Count} observations recorded";
-            phase.text=!presentation.Ready?"INCIDENT":state.Complete?"RESPONSE RECORDED":session.AwaitingContinue?"REFLECT":"OBSERVE & DECIDE";
-            prompt.text=!presentation.Ready?session.Scenario.Incident:state.Complete?session.LastDecision.Consequence.title:session.Prompt;
-            choices.Clear(); markers.Clear();
+            observationCount.text=state.Complete ? "3 / 3 decisions completed" : $"QUESTION {state.QuestionIndex+1} / {session.Scenario.Questions.Count}";
+            phase.text=!presentation.Ready?"INCIDENT":session.IsPresenting?"ACTION IN PROGRESS":state.Complete?"RESPONSE RECORDED":session.AwaitingContinue?"REFLECT":"OBSERVE & DECIDE";
+            prompt.text=!presentation.Ready?session.Scenario.Incident:state.Complete?session.Scenario.CompletionTitle:session.IsPresenting?session.LastDecision.Consequence.presentationCaption:session.Prompt;
+            choices.Clear();
             feedback.style.display=session.AwaitingContinue?DisplayStyle.Flex:DisplayStyle.None;
             completeText.style.display=state.Complete?DisplayStyle.Flex:DisplayStyle.None;
-            completeText.text=state.Complete?$"ASSESSMENT COMPLETE\nBest score {session.BestScore}/{session.Scenario.MaximumScore}\n{session.Scenario.CompletionSummary}\nUnsafe decisions: {state.Mistakes} · Penalties: {state.PenaltyPoints} points\n\nObservation rewards are granted once per attempt. Each decision explains its score change.":"";
+            completeText.text=state.Complete?$"{session.Scenario.CompletionMessage}\n\nFINAL SCORE  {state.Score}/{session.Scenario.MaximumScore}\nBest score {session.BestScore}/{session.Scenario.MaximumScore}\n\n{session.Scenario.CompletionSummary}\n\nUnsafe decisions: {state.Mistakes} · Penalties: {state.PenaltyPoints} points":"";
             if(session.AwaitingContinue)
             {
                 var d=session.LastDecision;
-                feedback.EnableInClassList("unsafe",d.Consequence.kind==ConsequenceKind.Unsafe);
+                feedback.EnableInClassList("unsafe",!d.Consequence.advancesQuestion);
                 feedbackTitle.text=d.Consequence.title;feedbackText.text=session.Explanation;
-                continueButton.style.display=state.Complete?DisplayStyle.None:DisplayStyle.Flex;
-                continueButton.text=d.Consequence.kind==ConsequenceKind.Unsafe?"Retry decision  →":"Continue assessment  →";
-                // Explain only the evaluated decision, not unrevealed future rules.
+                continueButton.style.display=DisplayStyle.Flex;
+                continueButton.text=d.Consequence.advancesQuestion?"CONTINUE  →":"TRY AGAIN  ↻";
+                continueButton.EnableInClassList("retry",!d.Consequence.advancesQuestion);
                 foreach(var old in feedback.Children().OfType<Foldout>().ToArray())old.RemoveFromHierarchy();
                 var reasoning=new Foldout{text="Why this result?",value=false};reasoning.AddToClassList("reasoning");
-                reasoning.Add(Text($"Score change: {d.Consequence.scoreDelta:+0;-0;0}"+(state.Complete?$" + {session.Scenario.CompletionBonus} completion":""),"caption"));
-                foreach(var rule in d.Inference.FiredRules)reasoning.Add(Text(rule.Id+" · "+rule.Rationale,"caption"));
-                reasoning.Add(Text(session.Scenario.Sources.First(s=>s.id==d.Consequence.sourceId).title,"source"));feedback.Add(reasoning);
+                reasoning.Add(Text($"Decision score: {d.Consequence.scoreDelta:+0;-0;0}","caption"));
+                foreach(var rule in d.Inference.FiredRules)reasoning.Add(Text(rule.Rationale,"caption"));
+                reasoning.Add(Text(session.Scenario.Sources.First(source=>source.id==d.Consequence.sourceId).title,"source"));feedback.Add(reasoning);
+                continueButton.schedule.Execute(()=>continueButton.Focus());
+                return;
             }
             if(state.Complete)
             {
-                var replay=Button("Replay scene  ↻",()=>session.Restart(),"primary");replay.name="replay";choices.Add(replay);
+                var replay=Button("REPLAY SCENE  ↻",()=>session.Restart(),"primary");replay.name="replay";choices.Add(replay);
+                replay.schedule.Execute(()=>replay.Focus());
                 return;
             }
-            if(session.AwaitingContinue || !presentation.Ready)return;
+            if(session.IsPresenting || !presentation.Ready)return;
             int number=0;
             foreach(var choice in session.Narrative.Choices)
             {
-                var current=choice;var action=session.Scenario.Action(choice.ActionId);number++;
-                var b=Button($"{number:00}   {choice.Text}",()=>session.Select(current.Index),"choice");
-                b.name="choice-"+choice.ActionId;b.tooltip=action.kind==ActionKind.Observe?"Observe from your current position":"Evaluate this decision";
+                var current=choice;
+                var b=Button($"{(char)('A'+number)}   {choice.Text}",()=>session.Select(current.Index),"choice");
+                number++;
+                b.name="choice-"+choice.ActionId;
                 choices.Add(b);
-                if(action.kind!=ActionKind.Observe)continue;
-                var observation=session.Scenario.Observations.First(o=>o.id==action.observationId);
-                var marker=Button(number.ToString("00"),()=>session.Select(current.Index),"hotspot");
-                marker.name="marker-"+choice.ActionId;marker.tooltip=choice.Text;marker.style.left=Length.Percent(observation.hotspot.x*100);marker.style.top=Length.Percent(observation.hotspot.y*100);markers.Add(marker);
+                if(number==1)b.schedule.Execute(()=>b.Focus());
             }
         }
     }

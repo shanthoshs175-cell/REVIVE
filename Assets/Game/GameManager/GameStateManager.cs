@@ -7,6 +7,9 @@ namespace Revive.Game
 {
     public sealed class GameState
     {
+        public int QuestionIndex { get; internal set; }
+        public bool AwaitingResolution { get; internal set; }
+        public bool QuestionCorrect { get; internal set; }
         public int Score { get; internal set; }
         public int Mistakes { get; internal set; }
         public long PenaltyPoints { get; internal set; }
@@ -34,9 +37,26 @@ namespace Revive.Game
             baseFacts = scenario.InitialFacts.ToList();
             State.Facts = new ForwardChainer().Infer(baseFacts, scenario.Rules).Facts;
         }
+        public void ResolveDecision()
+        {
+            if (!State.AwaitingResolution || State.Complete) throw new InvalidOperationException("No decision to resolve.");
+            State.AwaitingResolution = false;
+            if (State.QuestionCorrect)
+            {
+                State.QuestionIndex++;
+                State.Complete = State.QuestionIndex == scenario.Questions.Count;
+                if (State.Complete) scoreBalance += scenario.CompletionBonus;
+                State.Score = ScoreCalculator.Apply(scoreBalance, 0, 0, scenario.MaximumScore);
+            }
+            State.QuestionCorrect = false;
+            OnStateChanged?.Invoke(State);
+        }
         public DecisionResult Act(string actionId)
         {
             if (State.Complete) throw new InvalidOperationException("This attempt is complete.");
+            if (State.AwaitingResolution) throw new InvalidOperationException("Resolve the current decision first.");
+            if (!scenario.Questions[State.QuestionIndex].actionIds.Contains(actionId))
+                throw new InvalidOperationException("Action is not offered by the current question.");
             var action = scenario.Action(actionId);
             if (action.kind == ActionKind.Observe && State.observed.Contains(action.observationId))
                 throw new InvalidOperationException("Observation already recorded; no repeat points.");
@@ -48,9 +68,10 @@ namespace Revive.Game
             baseFacts.Clear(); baseFacts.AddRange(proposed);
             if (action.kind == ActionKind.Observe) State.observed.Add(action.observationId);
             State.Facts = inferred.Facts;
-            State.Complete = decision.Consequence.completesScenario;
+            State.AwaitingResolution = true;
+            State.QuestionCorrect = decision.Consequence.advancesQuestion;
             if (decision.Consequence.kind == ConsequenceKind.Unsafe) State.Mistakes++;
-            scoreBalance += decision.Consequence.scoreDelta + (State.Complete ? scenario.CompletionBonus : 0);
+            scoreBalance += decision.Consequence.scoreDelta;
             if (decision.Consequence.scoreDelta < 0) State.PenaltyPoints -= (long)decision.Consequence.scoreDelta;
             State.Score = ScoreCalculator.Apply(scoreBalance, 0, 0, scenario.MaximumScore);
             OnFactsUpdated?.Invoke(State.Facts);

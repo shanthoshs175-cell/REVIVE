@@ -1,4 +1,5 @@
 using UnityEngine;
+using Revive.Scenarios;
 using UnityEngine.UIElements;
 namespace Revive.Presentation
 {
@@ -9,6 +10,10 @@ namespace Revive.Presentation
         public float Reaction { get; set; }
         public bool Warning { get; set; }
         public bool ReducedMotion { get; set; }
+        public WorldResponse? Response { get; set; }
+        public float ResponseProgress { get; set; }
+        public bool AssessmentVisible { get; set; }
+        public bool CommunicationVisible { get; set; }
         private Painter2D pen;
         private float sx, sy;
         public EnvironmentCanvas() { generateVisualContent += Paint; pickingMode = PickingMode.Ignore; }
@@ -67,8 +72,16 @@ namespace Revive.Presentation
             Polygon("E6BA74",new Vector2(857,417),new Vector2(869,367),new Vector2(884,367),new Vector2(899,417));
             Polygon("2C4047",new Vector2(878,375),new Vector2(865,402),new Vector2(891,402));
             Line(878,383,878,393,"E6BA74",3); Circle(878,398,1.5f,"E6BA74");
-            // Bystanders remain outside the bay.
-            Person(332,292,0,.71f,"728989","C7A68E"); Person(393,294,0,.68f,"596B7B","B9957E");
+            // Actor motion is selected by presentation data, never by question IDs.
+            float t = ResponseProgress;
+            float travel = Mathf.SmoothStep(0, 1, Mathf.Clamp01(t / .48f));
+            float retreat = Mathf.SmoothStep(0, 1, Mathf.Clamp01((t - .62f) / .3f));
+            float excursion = travel * (1 - .3f * retreat);
+            bool directing = Response == WorldResponse.DirectBystander;
+            float bx = directing ? Mathf.Lerp(332, 550, ReducedMotion ? .7f : excursion) : 332;
+            float by = directing ? Mathf.Lerp(292, 458, ReducedMotion ? .7f : excursion) : 292;
+            Person(bx,by,directing && t > .6f ? -12 * retreat : 0,.71f,"728989","C7A68E",directing && !ReducedMotion ? Mathf.Sin(t*32)*travel*(1-retreat) : 0);
+            Person(393,294,0,.68f,"596B7B","B9957E");
             // A restrained, non-graphic fall, driven by the Animator.
             float fall = Mathf.SmoothStep(0,1,Incident);
             Person(573 + fall*40,346 + fall*44,-fall*78,1,"B2926D","C4A68F");
@@ -76,22 +89,61 @@ namespace Revive.Presentation
             Polygon("2C565A",new Vector2(60,493),new Vector2(290,493),new Vector2(374,620),new Vector2(0,620));
             Line(60,493,290,493,"74B5AD",3); Line(290,493,374,620,"74B5AD",3);
             for(int i=0;i<3;i++){Line(80+i*42,579,93+i*42,567,"6A9F9D",3);Line(93+i*42,567,106+i*42,579,"6A9F9D",3);}
+            // Player responder: distinct teal jacket, grounded shadow and articulated gait.
+            bool approach = Response == WorldResponse.Approach;
+            bool reach = Response == WorldResponse.Reach;
+            bool leaving = Response == WorldResponse.Leave;
+            float movement = ReducedMotion ? .7f : excursion;
+            float px = approach ? Mathf.Lerp(265,595,movement) : reach ? Mathf.Lerp(265,709,movement) : leaving ? Mathf.Lerp(265,35,ReducedMotion?1:travel) : 265;
+            float py = approach ? Mathf.Lerp(554,468,movement) : reach ? Mathf.Lerp(554,401,movement) : leaving ? Mathf.Lerp(554,620,ReducedMotion?1:travel) : 554;
+            bool locomotion = approach || reach || leaving;
+            float gait = locomotion && !ReducedMotion && t < .6f ? Mathf.Sin(t*38)*travel : 0;
+            float recoil = (approach || reach) && t > .6f ? -18*retreat : 0;
+            Circle(px,py+40,30,"203B43");
+            Person(px,py,recoil,.95f,"62B8AC","D3AC91",gait,reach && t>.4f && t<.72f || directing,Response==WorldResponse.Call || CommunicationVisible);
+            // A single restrained hazard pulse. Reduced motion uses a steady amber symbol.
+            bool electrical = approach || reach || directing;
+            if (AssessmentVisible) { Line(731,224,820,224,"E6BA74",3); Line(820,224,820,347,"E6BA74",3); }
+            if (electrical && (ReducedMotion || t>.48f && t<.76f))
+            {
+                string pulse = ReducedMotion ? "D9AD69" : "E9D8A5";
+                Line(705,358,685,379,pulse,4); Line(685,379,701,378,pulse,4); Line(701,378,684,399,pulse,4);
+                if (!ReducedMotion) { Line(724,367,736,351,pulse,2); Line(665,379,651,365,pulse,2); }
+            }
+            if (Response == WorldResponse.Survey || Response == WorldResponse.Monitor)
+            {
+                float scan = ReducedMotion ? .5f : Mathf.SmoothStep(0,1,t);
+                Line(285,471,Mathf.Lerp(595,786,scan),365,"659E98",1);
+                Circle(770,285,48,"284A52");
+                Rect(748,247,49,72,"586F72"); Rect(754,253,36,28,"233C47");
+                Line(740,334,802,334,"E8BD78",3);
+            }
+            if (CommunicationVisible && (Response != WorldResponse.Call || t>.45f))
+            {
+                Rect(385,493,111,49,"1B414A");
+                for(int i=0;i<4;i++) Rect(399+i*14,527-i*7,7,8+i*7,"8BD4BE");
+                Line(464,514,471,521,"B5E5CF",3); Line(471,521,485,505,"B5E5CF",3);
+            }
             // Foreground railing adds depth without occluding the scene.
             Rect(0,606,1000,34,"142833"); Line(0,608,1000,608,"29444F",3);
             if (Warning && Reaction > .05f) Line(520,526,958,526,"EBA47E",4+Reaction*3);
             if (!ReducedMotion)
                 for(int i=0;i<9;i++) { float y=80+(i*57+Time.unscaledTime*5)%430; Circle(100+i*99,y,1,"668188"); }
         }
-        private void Person(float x,float y,float degrees,float scale,string clothes,string skin)
+        private void Person(float x,float y,float degrees,float scale,string clothes,string skin,float gait=0,bool reaching=false,bool phone=false)
         {
             float r=degrees*Mathf.Deg2Rad;
             Vector2 P(float a,float b) => new Vector2(x+(a*Mathf.Cos(r)-b*Mathf.Sin(r))*scale,y+(a*Mathf.Sin(r)+b*Mathf.Cos(r))*scale);
             void Limb(float a,float b,float c,float d,string color,float width) { var p=P(a,b);var q=P(c,d);Line(p.x,p.y,q.x,q.y,color,width*scale); }
-            Limb(-8,-3,-17,45,"1D303B",14);Limb(9,-3,21,42,"213542",14);
+            Limb(-8,-3,-17+gait*12,45,"1D303B",14);Limb(9,-3,21-gait*12,42,"213542",14);
             Limb(-17,44,-30,46,"142630",9);Limb(21,42,34,43,"142630",9);
             Polygon(clothes,P(-18,-60),P(17,-60),P(21,-7),P(-17,-7));
             Limb(-16,-51,-33,-17,clothes,10);Limb(-33,-17,-33,-9,skin,7);
-            Limb(17,-50,32,-19,clothes,10);Limb(32,-19,35,-11,skin,7);
+            if (phone) { Limb(17,-50,25,-76,clothes,10); var device=P(22,-88); Rect(device.x,device.y,10*scale,18*scale,"122832"); }
+            else if (reaching) { Limb(17,-50,51,-52,clothes,10);Limb(51,-52,60,-50,skin,7); }
+            else { Limb(17,-50,32,-19,clothes,10);Limb(32,-19,35,-11,skin,7); }
+            // Jacket seams and badge give each silhouette a clearer body/readable pose.
+            Limb(0,-57,0,-12,"476F71",2);
             var neck=P(0,-66);Circle(neck.x,neck.y,7*scale,skin);
             var head=P(0,-82);Circle(head.x,head.y,14*scale,skin);
             var hair=P(-2,-90);Circle(hair.x,hair.y,12*scale,"29343A");

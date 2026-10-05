@@ -6,6 +6,7 @@ using Revive.Game;
 using Revive.Reasoning;
 using Revive.Scenarios;
 using UnityEditor;
+using Revive.Scenarios;
 namespace Revive.Tests
 {
     public sealed class ReasoningTests
@@ -31,94 +32,154 @@ namespace Revive.Tests
         [Test] public void PassLimitFailsExplicitly() => Assert.Throws<InvalidOperationException>(()=>new ForwardChainer().Infer(new[]{new Fact("a")},new[]{new Rule("next",new[]{new Fact("a")},new[]{new Fact("b")})},1));
         [Test] public void ScenarioLoadsWithCompiledInkAndSources() {Assert.NotNull(scenario);Assert.DoesNotThrow(scenario.Validate);Assert.That(scenario.Story.hasErrors,Is.False);Assert.That(scenario.Sources.Count,Is.GreaterThan(0));}
         [Test] public void UnobservedHazardIsUnknown() {var session=new GameStateManager(scenario);Assert.That(session.State.Facts.ContainsKey("hazard_confirmed"),Is.False);}
+        private static void Correct(GameStateManager manager, string action)
+        { manager.Act(action); manager.ResolveDecision(); }
+        private GameStateManager At(int question)
+        {
+            var manager = new GameStateManager(scenario);
+            if(question>0) Correct(manager,"assess");
+            if(question>1) Correct(manager,"call");
+            return manager;
+        }
+        [Test] public void QuestionsContainExactlyFourValidOptions()
+        {
+            Assert.That(scenario.Questions.Count,Is.EqualTo(3));
+            for(int i=0;i<3;i++)
+            {
+                var manager=At(i);var ink=new InkNarrative(scenario);
+                Assert.That(ink.Present(manager.State),Is.Not.Empty);
+                Assert.That(ink.Choices.Count,Is.EqualTo(4));
+                Assert.That(ink.Choices.Select(c=>c.ActionId),Is.EqualTo(scenario.Questions[i].actionIds));
+            }
+        }
         [Test] public void ObservationRevealsOnlyItsOwnFacts()
         {
-            var session=new GameStateManager(scenario);session.Act("observe_area");
-            Assert.That(session.State.Facts["safe_area_identified"],Is.True);Assert.That(session.State.Facts.ContainsKey("hazard_confirmed"),Is.False);
+            var manager=At(0);manager.Act("assess");
+            Assert.That(manager.State.Facts["hazard_confirmed"],Is.True);
+            Assert.That(manager.State.Facts["hazard_controlled"],Is.False);
+            Assert.That(manager.State.Facts.ContainsKey("help_requested"),Is.False);
         }
-        [Test] public void UnsafeSceneDerivesExplanationAndPenalty()
+        [TestCase(0,"approach",WorldResponse.Approach)]
+        [TestCase(0,"touch",WorldResponse.Reach)]
+        [TestCase(0,"leave",WorldResponse.Leave)]
+        [TestCase(1,"enter",WorldResponse.Approach)]
+        [TestCase(1,"send",WorldResponse.DirectBystander)]
+        [TestCase(1,"handle",WorldResponse.Reach)]
+        [TestCase(2,"enter_after_call",WorldResponse.Approach)]
+        [TestCase(2,"send_again",WorldResponse.DirectBystander)]
+        [TestCase(2,"touch_again",WorldResponse.Reach)]
+        public void EveryWrongOptionPreservesQuestionAndAllowsSameFourChoices(int question,string action,WorldResponse response)
         {
-            var session=new GameStateManager(scenario);session.Act("observe_equipment");session.Act("observe_area");session.Act("observe_people");
-            var result=session.Act("approach");Assert.That(result.Consequence.kind,Is.EqualTo(ConsequenceKind.Unsafe));Assert.That(result.Inference.Facts["unsafe_entry"],Is.True);
-            Assert.That(session.State.Score,Is.EqualTo(10));Assert.That(session.State.Complete,Is.False);Assert.That(session.State.Facts.ContainsKey("approach_requested"),Is.False);
+            var manager=At(question);var before=manager.State.Facts.ToDictionary(x=>x.Key,x=>x.Value);
+            var decision=manager.Act(action);
+            Assert.That(decision.Consequence.id,Is.EqualTo(action+"_result"));
+            Assert.That(decision.Consequence.worldResponse,Is.EqualTo(response));
+            Assert.That(decision.Consequence.advancesQuestion,Is.False);
+            Assert.That(manager.State.QuestionIndex,Is.EqualTo(question));
+            Assert.That(manager.State.Complete,Is.False);
+            Assert.That(manager.State.Mistakes,Is.EqualTo(1));
+            Assert.That(manager.State.PenaltyPoints,Is.EqualTo(10));
+            Assert.Throws<InvalidOperationException>(()=>manager.Act(action));
+            manager.ResolveDecision();
+            Assert.That(manager.State.QuestionIndex,Is.EqualTo(question));
+            Assert.That(manager.State.Facts,Is.EquivalentTo(before));
+            var ink=new InkNarrative(scenario);ink.Present(manager.State);
+            Assert.That(ink.Choices.Select(c=>c.ActionId),Is.EqualTo(scenario.Questions[question].actionIds));
         }
-        [Test] public void UnassessedApproachIsNotTreatedAsSafe() => Assert.That(new GameStateManager(scenario).Act("approach").Consequence.id,Is.EqualTo("unassessed_entry"));
-        [Test] public void SafeResponseDoesNotClaimHazardIsControlled()
+        [TestCase(0,"assess",WorldResponse.Survey)]
+        [TestCase(1,"call",WorldResponse.Call)]
+        [TestCase(2,"observe",WorldResponse.Monitor)]
+        public void CorrectDecisionRequiresContinueAndAdvancesExactlyOnce(int question,string action,WorldResponse response)
         {
-            var session=new GameStateManager(scenario);session.Act("observe_equipment");var result=session.Act("request_help");
-            Assert.That(result.Consequence.kind,Is.EqualTo(ConsequenceKind.Safe));Assert.That(session.State.Complete,Is.True);Assert.That(session.State.Facts["scene_unsafe"],Is.True);Assert.That(session.State.Facts["hazard_controlled"],Is.False);
+            var manager=At(question);var decision=manager.Act(action);
+            Assert.That(decision.Consequence.advancesQuestion,Is.True);
+            Assert.That(decision.Consequence.worldResponse,Is.EqualTo(response));
+            Assert.That(manager.State.QuestionIndex,Is.EqualTo(question));
+            Assert.That(manager.State.Complete,Is.False);
+            Assert.Throws<InvalidOperationException>(()=>manager.Act(action));
+            manager.ResolveDecision();Assert.That(manager.State.QuestionIndex,Is.EqualTo(question+1));
+            Assert.That(manager.State.Complete,Is.EqualTo(question==2));
+            Assert.Throws<InvalidOperationException>(()=>manager.ResolveDecision());
+        }
+        [Test] public void FutureActionsCannotSkipRequiredDecisions()
+        {
+            Assert.Throws<InvalidOperationException>(()=>At(0).Act("call"));
+            Assert.Throws<InvalidOperationException>(()=>At(0).Act("observe"));
+            Assert.Throws<InvalidOperationException>(()=>At(1).Act("observe"));
+        }
+        [Test] public void HelpPersistsWithoutControllingHazard()
+        {
+            var manager=At(2);Assert.That(manager.State.Facts["help_requested"],Is.True);
+            Assert.That(manager.State.Facts["hazard_controlled"],Is.False);Assert.That(manager.State.Complete,Is.False);
+            Correct(manager,"observe");Assert.That(manager.State.Facts["hazard_controlled"],Is.False);
         }
         [Test] public void SafeSceneInferenceSupportsOtherScenarioData()
         {
-            var safeRule=new Rule("safe",new[]{new Fact("hazard_controlled"),new Fact("route_clear")},new[]{new Fact("approach_possible")});
-            var result=new ForwardChainer().Infer(new[]{new Fact("hazard_controlled"),new Fact("route_clear")},new[]{safeRule});Assert.That(result.Facts["approach_possible"],Is.True);
+            var rule=new Rule("safe",new[]{new Fact("controlled"),new Fact("route_clear")},new[]{new Fact("approach_possible")});
+            Assert.That(new ForwardChainer().Infer(new[]{new Fact("controlled"),new Fact("route_clear")},new[]{rule}).Facts["approach_possible"],Is.True);
         }
-        [Test] public void EarlyHelpIsAllowedWithoutObservationGate() {var s=new GameStateManager(scenario);s.Act("request_help");Assert.That(s.State.Complete,Is.True);Assert.That(s.State.Score,Is.EqualTo(70));}
-        [Test] public void PerfectPathScores100() {var s=new GameStateManager(scenario);foreach(var id in new[]{"observe_equipment","observe_area","observe_people","request_help"})s.Act(id);Assert.That(s.State.Score,Is.EqualTo(100));}
-        [Test] public void RepeatingObservationCannotFarmScore() {var s=new GameStateManager(scenario);s.Act("observe_area");Assert.Throws<InvalidOperationException>(()=>s.Act("observe_area"));Assert.That(s.State.Score,Is.EqualTo(10));}
-        [Test] public void CompletedSessionRejectsFurtherActions() {var s=new GameStateManager(scenario);s.Act("request_help");Assert.Throws<InvalidOperationException>(()=>s.Act("request_help"));}
+        [Test] public void PerfectPathScores100OnlyAfterThreeCorrectDecisions()
+        {
+            var manager=At(0);Correct(manager,"assess");Assert.That(manager.State.Score,Is.EqualTo(30));
+            Correct(manager,"call");Assert.That(manager.State.Score,Is.EqualTo(60));
+            manager.Act("observe");Assert.That(manager.State.Score,Is.EqualTo(90));Assert.That(manager.State.Complete,Is.False);
+            manager.ResolveDecision();Assert.That(manager.State.Score,Is.EqualTo(100));Assert.That(manager.State.Complete,Is.True);
+            Assert.Throws<InvalidOperationException>(()=>manager.Act("observe"));
+        }
+        [Test] public void RepeatingObservationCannotFarmScore()
+        {
+            var manager=At(0);manager.Act("assess");Assert.Throws<InvalidOperationException>(()=>manager.Act("assess"));
+            manager.ResolveDecision();Assert.Throws<InvalidOperationException>(()=>manager.Act("assess"));Assert.That(manager.State.Score,Is.EqualTo(30));
+        }
+        [TestCase(1,90)] [TestCase(12,0)]
+        public void UnsafePenaltyAtZeroCannotDisappearOrPreventCompletion(int attempts,int expected)
+        {
+            var manager=At(0);
+            for(int i=0;i<attempts;i++){Correct(manager,"approach");Assert.That(manager.State.Score,Is.InRange(0,100));}
+            Correct(manager,"assess");Correct(manager,"call");Correct(manager,"observe");
+            Assert.That(manager.State.Mistakes,Is.EqualTo(attempts));Assert.That(manager.State.PenaltyPoints,Is.EqualTo(attempts*10));
+            Assert.That(manager.State.Score,Is.EqualTo(expected));Assert.That(manager.State.Complete,Is.True);
+        }
         [TestCase(0,-20,0,0)] [TestCase(95,50,20,100)] [TestCase(30,50,20,100)]
         public void ScoreIsBounded(int current,int delta,int bonus,int expected) => Assert.That(ScoreCalculator.Apply(current,delta,bonus,100),Is.EqualTo(expected));
-        [Test] public void UnsafeDecisionAtZeroRetainsPenaltyAndMistake()
-        {
-            var s = new GameStateManager(scenario);
-            s.Act("approach");
-            Assert.That(s.State.Score, Is.Zero);
-            Assert.That(s.State.Mistakes, Is.EqualTo(1));
-            Assert.That(s.State.PenaltyPoints, Is.EqualTo(15));
-            foreach (var id in new[]{"observe_equipment", "observe_area", "observe_people", "request_help"}) s.Act(id);
-            Assert.That(s.State.Score, Is.EqualTo(85));
-            Assert.That(s.State.Complete, Is.True);
-        }
-        [Test] public void ConfirmedUnsafeDecisionRetainsWholePenalty()
-        {
-            var s = new GameStateManager(scenario);
-            s.Act("observe_equipment"); s.Act("approach");
-            Assert.That(s.State.Score, Is.Zero);
-            foreach (var id in new[]{"observe_area", "observe_people", "request_help"}) s.Act(id);
-            Assert.That(s.State.Score, Is.EqualTo(80));
-            Assert.That(s.State.Mistakes, Is.EqualTo(1));
-            Assert.That(s.State.PenaltyPoints, Is.EqualTo(20));
-        }
-        [Test] public void RepeatedUnsafeActionsRemainBoundedAndNeverScorePerfectly()
-        {
-            var s = new GameStateManager(scenario);
-            for (int i=0;i<12;i++) { s.Act("approach"); Assert.That(s.State.Score, Is.InRange(0,100)); }
-            foreach (var id in new[]{"observe_equipment", "observe_area", "observe_people", "request_help"}) s.Act(id);
-            Assert.That(s.State.Score, Is.Zero);
-            Assert.That(s.State.Mistakes, Is.EqualTo(12));
-            Assert.That(s.State.PenaltyPoints, Is.EqualTo(180));
-        }
-        [Test] public void WaitingPenaltyAtZeroAlsoRemainsAccountedFor()
-        {
-            var s = new GameStateManager(scenario); s.Act("wait");
-            foreach (var id in new[]{"observe_equipment", "observe_area", "observe_people", "request_help"}) s.Act(id);
-            Assert.That(s.State.Score, Is.EqualTo(95));
-        }
         [Test] public void EventsPublishInOrder()
         {
-            var s=new GameStateManager(scenario);var events=new List<string>();s.OnPlayerAction+=_=>events.Add("action");s.OnFactsUpdated+=_=>events.Add("facts");s.OnStateChanged+=_=>events.Add("state");s.OnConsequenceReady+=_=>events.Add("consequence");s.Act("observe_area");Assert.That(events,Is.EqualTo(new[]{"action","facts","state","consequence"}));
+            var manager=At(0);var events=new List<string>();manager.OnPlayerAction+=_=>events.Add("action");manager.OnFactsUpdated+=_=>events.Add("facts");manager.OnStateChanged+=_=>events.Add("state");manager.OnConsequenceReady+=_=>events.Add("consequence");manager.Act("assess");Assert.That(events,Is.EqualTo(new[]{"action","facts","state","consequence"}));
         }
         [Test] public void InkBridgeUsesTagsAndHasAllExplanations()
         {
-            var s=new GameStateManager(scenario);var ink=new InkNarrative(scenario);Assert.That(ink.Present(s.State),Is.Not.Empty);
-            Assert.That(ink.Choices.Count,Is.EqualTo(6));
+            var manager=At(0);var ink=new InkNarrative(scenario);
             foreach(var outcome in scenario.Consequences)Assert.That(ink.Explain(outcome.explanationKnot),Is.Not.Empty);
-            ink.Present(s.State);var choice=ink.Choices.First(c=>c.ActionId=="observe_area");Assert.That(ink.Choose(choice.Index),Is.EqualTo("observe_area"));s.Act(choice.ActionId);ink.Present(s.State);Assert.That(ink.Choices.Any(c=>c.ActionId==choice.ActionId),Is.False);
+            ink.Present(manager.State);var choice=ink.Choices.First(c=>c.ActionId=="assess");Assert.That(ink.Choose(choice.Index),Is.EqualTo("assess"));
         }
-        [Test] public void EveryOfferedChoiceEvaluatesAfterEveryObservationSubset()
+        [Test] public void EveryQuestionHasExactlyOneCorrectChoice()
         {
-            for(int bits=0;bits<8;bits++)
+            Assert.That(scenario.Questions.Count,Is.EqualTo(3));
+            foreach(var q in scenario.Questions)
             {
-                var s=new GameStateManager(scenario);var obs=new[]{"observe_equipment","observe_area","observe_people"};
-                for(int j=0;j<3;j++)if((bits&(1<<j))!=0)s.Act(obs[j]);
-                var ink=new InkNarrative(scenario);ink.Present(s.State);
-                foreach(var choice in ink.Choices)
-                {
-                    var clone=new GameStateManager(scenario);for(int j=0;j<3;j++)if((bits&(1<<j))!=0)clone.Act(obs[j]);
-                    Assert.DoesNotThrow(()=>clone.Act(choice.ActionId),choice.ActionId+" / "+bits);
-                }
+                int correctCount=q.actionIds.Count(id=>scenario.Outcome(scenario.Action(id).outcomes[0]).advancesQuestion);
+                Assert.That(correctCount,Is.EqualTo(1));
             }
+        }
+        [Test] public void Level2UnlocksOnlyAfterLevel1Completion()
+        {
+            var store=new PlayerPrefsProgressStore();
+            UnityEngine.PlayerPrefs.DeleteKey("revive.progress.v1.level02.unlocked");
+            UnityEngine.PlayerPrefs.DeleteKey("revive.progress.v1.level01_scene_safety.done");
+            Assert.That(store.IsUnlocked("level02"),Is.False);
+            var manager=At(0);Correct(manager,"assess");Correct(manager,"call");Correct(manager,"observe");
+            Assert.That(manager.State.Complete,Is.True);
+            store.Record(scenario.Id,manager.State.Score,scenario.UnlocksScenarioId);
+            Assert.That(store.IsUnlocked("level02"),Is.True);
+        }
+        [Test] public void ReplayResetsAttemptState()
+        {
+            var manager=At(0);Correct(manager,"assess");
+            Assert.That(manager.State.QuestionIndex,Is.EqualTo(1));
+            var restarted=new GameStateManager(scenario);
+            Assert.That(restarted.State.QuestionIndex,Is.Zero);
+            Assert.That(restarted.State.Score,Is.Zero);
+            Assert.That(restarted.State.Complete,Is.False);
         }
     }
 }

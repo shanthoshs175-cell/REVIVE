@@ -33,7 +33,8 @@ namespace Revive.Game
         {
             story.variablesState["complete"] = state.Complete;
             observed = state.Observed;
-            story.ChoosePathString("observe"); return Read();
+            if (state.Complete) return scenario.CompletionMessage;
+            story.ChoosePathString(scenario.Questions[state.QuestionIndex].inkKnot); return Read();
         }
         public IReadOnlyList<NarrativeChoice> Choices => story.currentChoices.Select(c =>
         {

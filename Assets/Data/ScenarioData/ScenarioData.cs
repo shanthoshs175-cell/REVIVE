@@ -8,6 +8,13 @@ namespace Revive.Scenarios
 {
     public enum ActionKind { Observe, Decide }
     public enum ConsequenceKind { Observation, Safe, Unsafe, Incomplete }
+    public enum WorldResponse { Approach, Survey, Reach, Leave, DirectBystander, Call, Monitor }
+    [Serializable] public sealed class ScenarioQuestion
+    {
+        public string id;
+        public string inkKnot;
+        public string[] actionIds = Array.Empty<string>();
+    }
     [Serializable] public sealed class Observation
     {
         public string id;
@@ -36,6 +43,10 @@ namespace Revive.Scenarios
         public string sourceId;
         public int scoreDelta;
         public bool completesScenario;
+        public bool advancesQuestion;
+        public WorldResponse worldResponse;
+        public string presentationCaption;
+        public float presentationDuration = 3f;
     }
     [Serializable] public sealed class SourceReference
     {
@@ -62,11 +73,19 @@ namespace Revive.Scenarios
         [SerializeField] private Observation[] observations = Array.Empty<Observation>();
         [SerializeField] private ScenarioAction[] availableActions = Array.Empty<ScenarioAction>();
         [SerializeField] private Rule[] rules = Array.Empty<Rule>();
+        [SerializeField] private ScenarioQuestion[] questions = Array.Empty<ScenarioQuestion>();
+        [SerializeField] private string unlocksScenarioId;
+        [SerializeField] private string completionTitle;
+        [SerializeField] private string completionMessage;
         [SerializeField] private string[] correctActions = Array.Empty<string>();
         [SerializeField] private Consequence[] consequences = Array.Empty<Consequence>();
         [SerializeField] private SourceReference[] sources = Array.Empty<SourceReference>();
         [SerializeField] private int completionBonus = 20;
         [SerializeField] private int maximumScore = 100;
+        public IReadOnlyList<ScenarioQuestion> Questions => questions;
+        public string UnlocksScenarioId => unlocksScenarioId;
+        public string CompletionTitle => completionTitle;
+        public string CompletionMessage => completionMessage;
         public string Id => id;
         public string Title => title;
         public string Environment => environment;
@@ -101,6 +120,19 @@ namespace Revive.Scenarios
                 if (action.kind == ActionKind.Observe && !observations.Any(o => o.id == action.observationId))
                     throw new InvalidOperationException("Unknown observation.");
             }
+            Unique(questions.Select(q => q.id));
+            if (questions.Length == 0) throw new InvalidOperationException("Scenario needs questions.");
+            foreach (var question in questions)
+            {
+                if (question.actionIds.Length != 4 || question.actionIds.Distinct().Count() != 4 || string.IsNullOrWhiteSpace(question.inkKnot))
+                    throw new InvalidOperationException("Each question requires four distinct actions and an Ink knot.");
+                foreach (var key in question.actionIds) Action(key);
+                if (question.actionIds.Count(key => correctActions.Contains(key)) != 1)
+                    throw new InvalidOperationException("Each question requires one correct action.");
+            }
+            foreach (var outcome in consequences)
+                if (outcome.presentationDuration <= 0 || string.IsNullOrWhiteSpace(outcome.presentationCaption))
+                    throw new InvalidOperationException("Every outcome needs a world response and caption.");
             foreach (var key in correctActions) Action(key);
             foreach (var rule in rules)
                 if (!sources.Any(s => s.id == rule.SourceId)) throw new InvalidOperationException("Rule has no source: " + rule.Id);
