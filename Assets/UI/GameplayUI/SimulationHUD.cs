@@ -19,9 +19,21 @@ namespace Revive.UI
         private Button continueButton, motionButton, soundButton;
         private EnvironmentCanvas canvas;
         private bool readyLast;
-        private void OnEnable() { session.Refreshed += Refresh; }
-        private void OnDisable() { session.Refreshed -= Refresh; }
-        private void Start() { Build(); Refresh(); }
+        private void OnEnable() { ResolveDependencies(); if (session != null) session.Refreshed += Refresh; }
+        private void OnDisable() { if (session != null) session.Refreshed -= Refresh; }
+        private void ResolveDependencies()
+        {
+            if (session == null) session = FindFirstObjectByType<ScenarioSession>();
+            if (presentation == null) presentation = FindFirstObjectByType<ScenarioPresentation>();
+            if (audioFeedback == null) audioFeedback = FindFirstObjectByType<ScenarioAudio>();
+            if (stylesheet == null)
+            {
+#if UNITY_EDITOR
+                stylesheet = UnityEditor.AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/UI/GameplayUI/Simulation.uss");
+#endif
+            }
+        }
+        private void Start() { ResolveDependencies(); Build(); Refresh(); }
         private static Label Text(string text,string cls) { var label=new Label(text);label.AddToClassList(cls);return label; }
         private static VisualElement Box(VisualElement parent,string cls)
         { var e=new VisualElement();e.AddToClassList(cls);parent.Add(e);return e; }
@@ -29,7 +41,10 @@ namespace Revive.UI
         {var b=new Button(clicked){text=text};b.AddToClassList(cls);return b;}
         private void Build()
         {
-            root=GetComponent<UIDocument>().rootVisualElement;root.Clear();root.styleSheets.Add(stylesheet);root.AddToClassList("app");
+            ResolveDependencies();
+            root=GetComponent<UIDocument>().rootVisualElement;root.Clear();
+            if (stylesheet != null) root.styleSheets.Add(stylesheet);
+            root.AddToClassList("app");
             root.RegisterCallback<GeometryChangedEvent>(_=>root.EnableInClassList("compact",root.resolvedStyle.width<1000));
             var header=Box(root,"header");
             var brand=Box(header,"brand");brand.Add(Text("REVIVE", "wordmark"));brand.Add(Text("EVERY CHOICE MATTERS", "micro"));

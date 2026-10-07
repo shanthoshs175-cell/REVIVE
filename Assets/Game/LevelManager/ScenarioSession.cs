@@ -23,7 +23,19 @@ namespace Revive.Game
         public event Action Refreshed;
         public event Action Restarted;
         public event Action<DecisionResult> DecisionPresented;
-        private void Awake() { progress = new PlayerPrefsProgressStore(); Restart(); }
+        private void Awake()
+        {
+            if (scenario == null)
+            {
+#if UNITY_EDITOR
+                scenario = UnityEditor.AssetDatabase.LoadAssetAtPath<ScenarioData>("Assets/Data/ScenarioData/Level01_SceneSafety.asset");
+#else
+                scenario = Resources.Load<ScenarioData>("ScenarioData/Level01_SceneSafety");
+#endif
+            }
+            progress = new PlayerPrefsProgressStore();
+            Restart();
+        }
         public void Restart()
         {
             StopAllCoroutines(); IsPresenting = false;

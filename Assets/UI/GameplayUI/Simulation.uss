@@ -59,3 +59,16 @@ Button:focus { border-color: #e8c580; border-width: 2px; }
 .reasoning .unity-toggle__text { color: #c4d9d4; }
 .reasoning .unity-toggle:focus { border-color: #e8c580; border-width: 1px; }
 .header, .heading, .footer { flex-shrink: 0; }
+
+.bg-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+.sprite-layer {
+    position: absolute;
+    -unity-background-scale-mode: scale-to-fit;
+}
